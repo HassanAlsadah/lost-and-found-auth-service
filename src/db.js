@@ -1,23 +1,24 @@
-// ============================================
-// Factor 4: Backing Services
-// Database is an attached resource
-// Connected via environment variables (Factor 3)
-// Swap PostgreSQL for MySQL → change DB_HOST only
-// ============================================
-
 const { Pool } = require('pg');
 const logger = require('./logger');
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10) || 5432,
+const poolConfig = {
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  max: 20,                     // connection pool size
+  max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000
-});
+  connectionTimeoutMillis: 10000
+};
+
+// Cloud Run uses unix socket to connect to Cloud SQL
+if (process.env.INSTANCE_CONNECTION_NAME) {
+  poolConfig.host = `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`;
+} else {
+  poolConfig.host = process.env.DB_HOST || 'localhost';
+  poolConfig.port = parseInt(process.env.DB_PORT, 10) || 5432;
+}
+
+const pool = new Pool(poolConfig);
 
 pool.on('connect', () => {
   logger.info('Database connection established');
